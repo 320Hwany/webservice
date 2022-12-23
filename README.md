@@ -50,7 +50,8 @@ MongoDB로 교체가 필요하다면 Spring Data JPA에서 Spring Data MongoDB�
 따라서 절대로 Entity 클래스를 Request/Response 클래스로 사용해서는 안된다. Request/Response 용 Dto를 만들어야 한다.  
 * 트랜잭션 안에서 데이터베이스에서 데이터를 가져오면 데이터는 영속성 컨텍스트가 유지된 상태이다. 트랜잭션이 끝나는 시점에 변경분을 반영하는  
 더티체킹이 일어나기 때문에 별도로 Update 쿼리를 날릴 필요가 없다.  
-* 보통 엔티티에는 해당 데이터의 생성시간과 수정시간을 포함한다. 이때 반복적인 코드를 모든 테이블에 포함 시키지 않기 위해서는 JPA Auditing을 사용하면 된다.  
+* 보통 엔티티에는 해당 데이터의 생성시간과 수정시간을 포함한다. 이때 반복적인 코드를 모든 테이블에 포함 시키지 않기 위해서는   
+@MappedSuperclass, JPA Auditing을 사용하면 된다.   
 
 ### 4장 : 머스테치로 화면 구성하기
 * 템플릿 엔진이란 지정된 템플릿 양식과 데이터가 합쳐져 HTML 문서를 출력하는 소프트웨어를 이야기한다. 
@@ -60,3 +61,29 @@ MongoDB로 교체가 필요하다면 Spring Data JPA에서 Spring Data MongoDB�
 * layout을 만들 때 페이지 로딩속도를 높이기 위해 css header에 js는 footer에 두었다. HTML은 위에서부터 코드가 실행되기 때문에  
 head가 다 실행되고 body가 실행된다. js의 용량이 크면 클 수록 body의 실행이 늦어지기 때문에 js는 body의 하단에 두는 것이 좋다.  
 반면에 css는 화면을 그리는 역할이므로 head에서 부르는 것이 좋다. 그렇지 않으면 css가 적용되지 않은 깨진 화면을 사용자가 볼 수 있기 때문이다.  
+* 규모가 있는 프로젝트에서의 데이터 조회는 FK의 조인, 복잡한 조건 등으로 Entity 클래스만으로 처리하기 어려워 조회용 프레임워크를 추가로 사용한다.   
+대표적인 예로 querydsl, jooq, MyBatis가 있는데 타입 안전성이 보장되고 레퍼런스가 많은 querydsl 사용을 추천한다.  
+등록/수정/삭제는 Spring Data Jpa를 통해 진행한다.   
+
+### 5장 : 스프링 시큐리티와 OAuth 2.0으로 로그인 기능 구현하기
+
+* 인터셉터, 필터 기반의 보안 기능을 구현하는 것보다 스프링 시큐리티를 통해 구현하는 것을 더 적극적으로 권장하고 있다.  
+* 로그인 기능을 직접 구현하려면 로그인 시 보안, 회원가입시 이메일/전화번호 인증, 비밀번호 찾기, 비밀번호 변경, 회원정보 변경 등을 전부 구현해야 한다.  
+* 스프링 부트 1.5 방식에서는 application.properties, application.yml 설정시 url 주소를 모두 명시해야 하지만 2.0 방식에서는   
+client 인증 정보만 입력하면 된다.     
+* 스프링 시큐리티에서는 권한 코드에 항상 ROLE_이 앞에 있어야만 한다.  
+* @EnableWebSecurity : Spring Security 설정들을 활성화 시켜준다.   
+csrf().disable().headers().frameOptions().disable() : h2-console 화면을 사용하기 위해 해당 옵션들을 disable 한다.  
+authorizeRequests : URL별 권한 관리를 설정하는 옵션의 시작점, 이것을 선언해야 antMatchers 옵션을 사용할 수 있다.  
+antMatchers : 권한 관리 대상을 지정하는 옵션이다.  
+anyRequest : 설정된 값들 이외 나머지 URL들을 나타낸다. authenticated()를 추가하면 인증된 사용자들에게만 허용하는 것이다.  
+logout().logoutSuccessUrl("/") : 로그아웃 성공시 / 주소로 이동한다.  
+oauth2Login : OAuth2 로그인 기능에 대한 여러 설정의 진입점  
+userInfoEndPoint : OAuth2 로그인 성공 이후 사용자 정보를 가져올 때의 설정들을 담당한다.  
+userService : 소셜 로그인 성공시 후속 조치를 진행할 UserService 인터페이스의 구현체를 등록한다.  
+* 스프링 시큐리티 사용을 위해 SecurityConfig, CustomOAuth2UserService, OAuthAttributes, SessionUser 4개의 클래스를  
+구현하였다. SecurityConfig에는 설정 코드를 작성하고 CustomOAuth2UserService는 소셜 로그인 이후 가져온 사용자의 정보들을 기반으로  
+가입 및 정보수정, 세션 저장등의 기능을 지원한다. OAuthAttributes는 OAuth2UserService를 통해 가져온 OAuth2의 attribute를 담을 클래스이다.   
+* User 클래스를 사용하지 않고 SessionUser Dto를 새로 만든 이유는 User 클래스는 엔티티이기 때문에 언제 다른 엔티티와 관계가 형성될지 모른다.  
+따라서 성능 이슈, 부수 효과가 발생할 확률이 높기 때문에 직렬화 기능을 가진 세션 Dto를 하나 추가로 만들었다.  
+
