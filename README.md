@@ -140,7 +140,35 @@ Iaas를 한번 더 추상화 -> 더 많은 기능이 자동화 (AWS의 Beanstalk
 * RDS는 AWS에서 지원하는 클라우드 기반 관계형 데이터베이스이다. 하드웨어 프로비저닝, 데이터베이스 설정,  
 패치 및 백업과 같이 잦은 운영 작업을 자동화하여 개발자가 개발에 집중할 수 있게 지원하는 서비스이다.  
 * RDS 인스턴스를 생성한 후 RDS 운영환경에 맞는 파라미터를 설정하자. 파라미터 그룹을 생성하고 타임존, 
-Character Set, Max Connection을 변경하자. -> 생성된 파라미터 그룹을 데이터베이스에 연결  
+Character Set, Max Connection을 변경하자. -> 생성된 파라미터 그룹을 데이터베이스에 연결   
+* 내 PC에서 RDS에서 접속해보기, 로컬 PC에서 RDS로 접근하기 위해서 RDS의 보안 그룹에 본인 PC의 IP를 추가  
+EC2에 사용된 보안 그룹의 그룹 ID를 복사하고 RDS 보안 그룹의 인바운드로 추가한다.  
+* EC2에서 RDS에서 접근 확인 -> EC2에 ssh 접속을 진행한 후 RDS에 접속한다.  
+
+### 8장 : EC2 서버에 프로젝트를 배포해보자  
+
+* EC2에 프로젝트 Clone 받기  
+* 작성한 코드를 실제 서버에 반영하는 것을 배포라고 한다. 배포는 git clone, git pull을 통해 새 버전의 프로젝트를 받고  
+Gradle이나 Maven을 통해 프로젝트 테스트와 빌드, EC2 서버에서 해당 프로젝트 실행 및 재실행의 과정을 말한다.  
+* 배포할 때마다 개발자가 하나하나 명령어를 실행하는 것은 불편함이 많다. 이를 쉘 스크립트로 작성해 스크립트만 실행하면  
+앞의 과정이 차례로 진행되도록 해보자  
+* 빔은 리눅스 환경과 같이 GUI가 아닌 환경에서 사용할 수 있는 편집도구이다. 빔으로 리눅스 환경에서의 편집을 진행해보자.  
+vim ~/app/git/deploy.sh. 로 파일을 하나 생성하자.  
+1. REPOSITORY=/home/ec2-user/app/step1 : 프로젝트 디렉토리 주소는 스크립트 내에서 자주 사용하는 값이기 때문에  
+이를 변수로 저장하자.  
+2. cd $REPOSITORY/$PROJECT_NAME/ : 쉘에서는 $ 변수명으로 변수를 사용할 수 있다.  
+3. git pull : master 브랜치의 최신 내용을 받는다.  
+4. ./gradlew build : 프로젝트 내부의 gradlew로 build를 수행한다.  
+5. cp $REPOSITORY/$PROJECT_NAME/bulid/libs/*.jar $REPOSITORY/ : build의 결과물인 jar 파일을 복사해  
+jar 파일을 모아둔 위치로 복사한다.  
+6. CURRENT_PID=$(pgrep -f ${PROJECT_NAME}*.jar) : 기존에 수행 중이던 스프링 부트 애플리케이션을 종료한다.  
+pgrep은 process id만 추출하는 명령어이다. -f 옵션은 프로세스 이름으로 찾는다.  
+7. if ~ else ~fi : 현재 구동중인 프로세스가 있는지 없는지를 판단해서 기능을 수행한다.  
+8. JAR_NAME=$(ls -tr $REPOSITORY/ | grep *.jar | tail -n 1) : 새로 실행할 jar 파일명을 찾는다.  
+9. nohup java -jar $REPOSITORY/$JAR_NAME 2>&1 & : 찾은 jar 파일명으로 해당 jar 파일을 nohup으로 실행한다.  
+애플리케이션 실행자가 터미널을 종료해도 애플리케이션은 계속 구동될 수 있도록 nohup 명령어를 사용한다.  
+
+
 
 
 
